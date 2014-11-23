@@ -18,33 +18,30 @@ class Analyzer:
         self.valid_query_coverage = valid_query_coverage
 
     # Method to call blast search, we save result to a file in case we can check what happened
-    def startBlastSearch(self, file = "search_output.xml"):
-        blast_output = NCBIWWW.qblast(self.program,
-            self.database,
-            self.record.seq,
-            entrez_query=self.entrez_query,
-            format_type=self.format_type)
-        save_file = open(file, "w")
-        save_file.write(blast_output.read())
+    def startBlastSearch(self, input="search_output.xml"):
+        blast_output = NCBIWWW.qblast(self.program, self.database, self.record.seq,
+            entrez_query = self.entrez_query, format_type = self.format_type)
+
+        output_file = open(input, "w")
+        output_file.write(blast_output.read())
         return
 
     # Method to return result of qblast
     # we call quickBlastSearch and specify a file to save xml result to
-    def startBlast(self, file = "search_output.xml"):
-        self.startBlastSearch(file)
+    def startBlast(self, input="search_output.xml"):
+        self.startBlastSearch(input)
 
-        result_handle = open(file)
-        result = NCBIXML.read(result_handle)
-        return result;
+        result = open(input)
+        return NCBIXML.read(result);
 
     # Returns only those records with query coverage over 80 percents
-    def blast(self, file = "search_output.xml"):
-        brecord = self.startBlast(file)
+    def blast(self, input="search_output.xml"):
+        blastrecords = self.startBlast(input)
         not_valid_aligments = []
-        query_letters = brecord.query_letters
+        query_letters = blastrecords.query_letters
 
         # Calculate each alignment query coverage and add invalid records to not_valid_alignments
-        for alignment in brecord.alignments:
+        for alignment in blastrecords.alignments:
             match_len_sum = 0
             for hsp in alignment.hsps:
                 match_len_sum += hsp.align_length
@@ -54,28 +51,32 @@ class Analyzer:
 
         # Remove invalid alignments
         for alignment in not_valid_aligments:
-            brecord.alignments.remove(alignment)
+            blastrecords.alignments.remove(alignment)
 
         # Return only valid records
-        return brecord
+        return blastrecords
 
     # Method to load main sequence
     def loadMainAlbumin(self, path, format="fasta"):
         self.record = SeqIO.read(open(path), format=format)
 
     # Method to save blast record in FASTA format
-    def saveBlastRecordAsFasta(self, brecord, save_to = "blast_record.fasta"):
-        fasta_list = []
-        for alignment in brecord.alignments:
+    def saveBlastRecordAsFasta(self, blastrecords, saveFile="blast_record.fasta"):
+        fastalist = []
+        for alignment in blastrecords.alignments:
             for hsp in alignment.hsps:
-                fasta_list.append('>')
-                fasta_list.append(alignment.title)
-                fasta_list.append('\n')
-                fasta_list.append(hsp.sbjct)
-                fasta_list.append('\n')
-                fasta_list.append('\n')
-        with open(save_to,"w") as temp_file:
-            temp_file.writelines(fasta_list)
+                fastalist.append('>')
+                fastalist.append(alignment.title)
+                fastalist.append('\n')
+                fastalist.append(hsp.sbjct)
+                fastalist.append('\n')
+                fastalist.append('\n')
+        with open(saveFile, "w") as tempfile:
+            tempfile.writelines(fastalist)
+
+    def startMafft(self, input="blast_record.fasta", output="mafft_output.fasta"):
+        os.system('mafft --quiet ' + input + ' > ' + output)
+        return
 
 def main():
     part_length_to_analyze = 15
@@ -85,6 +86,7 @@ def main():
 
     blast = seqAn.blast();
     seqAn.saveBlastRecordAsFasta(blast, "blast_output.fasta");
+    # seqAn.startMafft("blast_output.fasta");
 
 # Run main
 main()
