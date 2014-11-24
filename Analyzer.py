@@ -17,22 +17,8 @@ class Analyzer:
         self.formatType = formatType
         self.queryCoverage = queryCoverage
 
-    def startBlastSearch(self, input="search_output.xml"):
-        blastOutput = NCBIWWW.qblast(self.program, self.database, self.record.seq,
-            entrez_query = self.entrezQuery, format_type = self.formatType)
-
-        outputFile = open(input, "w")
-        outputFile.write(blastOutput.read())
-        return;
-
     def startBlast(self, input="search_output.xml"):
-        self.startBlastSearch(input)
-
-        result = open(input)
-        return NCBIXML.read(result);
-
-    def blast(self, input="search_output.xml"):
-        blastRecords = self.startBlast(input)
+        blastRecords = self.blast(input)
         notValidAlignments = []
         queryLetters = blastRecords.query_letters
 
@@ -49,6 +35,20 @@ class Analyzer:
 
         return blastRecords;
 
+    def blast(self, input="search_output.xml"):
+        self.blastSearch(input)
+
+        result = open(input)
+        return NCBIXML.read(result);
+
+    def blastSearch(self, input="search_output.xml"):
+        blastOutput = NCBIWWW.qblast(self.program, self.database, self.record.seq,
+            entrez_query = self.entrezQuery, format_type = self.formatType)
+
+        outputFile = open(input, "w")
+        outputFile.write(blastOutput.read())
+        return;
+
     def loadMainAlbumin(self, path, format="fasta"):
         self.record = SeqIO.read(open(path), format=format)
 
@@ -64,18 +64,6 @@ class Analyzer:
     def startMafft(self, input="blast_record.fasta", output="mafft_output.fasta"):
         os.system("mafft --quiet {0} > {1}".format(input, output))
         return;
-
-    def mistakesInPart(self, mainSequence, allSeqs, startIndex, partLength):
-        mistakes = 0
-
-        for i in range(1, len(allSeqs)):
-            sequence = allSeqs[i]
-
-            for j in range (startIndex, startIndex + partLength):
-                if (sequence[j] != mainSequence[j]):
-                    mistakes += 1
-
-        return mistakes;
 
     def analysis(self, partLength, input="mafft_output.fasta", format="fasta"):
         allSeqs = []
@@ -102,6 +90,18 @@ class Analyzer:
         print("Labiausiai panaši seka: {0}".format(allSeqs[0][maxIndex:(maxIndex+partLength)]))
         return;
 
+    def mistakesInPart(self, mainSequence, allSeqs, startIndex, partLength):
+        mistakes = 0
+
+        for i in range(1, len(allSeqs)):
+            sequence = allSeqs[i]
+
+            for j in range (startIndex, startIndex + partLength):
+                if (sequence[j] != mainSequence[j]):
+                    mistakes += 1
+
+        return mistakes;
+
 def main():
     searchOutputFile = "search_output.xml"
     blastOutputFile = "blast_output.fasta"
@@ -110,7 +110,7 @@ def main():
     seqAn.loadMainAlbumin("serum_albumin_preproprotein.fasta")
 
     if (os.path.isfile(searchOutputFile) == False):
-        blast = seqAn.blast(searchOutputFile)
+        blast = seqAn.startBlast(searchOutputFile)
         seqAn.saveBlastRecord(blast, blastOutputFile)
     if (os.path.isfile(blastOutputFile) == True):
         seqAn.startMafft(blastOutputFile)
