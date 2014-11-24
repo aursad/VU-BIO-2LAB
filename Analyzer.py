@@ -1,6 +1,6 @@
 __author__ = 'Aurimas Sadauskas'
 _version__ = '1.0'
-_lastUpdate = '2014-11-23'
+_lastUpdate = '2014-11-24'
 
 import os
 from Bio.Blast import NCBIWWW
@@ -9,146 +9,113 @@ from Bio import SeqIO
 
 class Analyzer:
     # Constructor
-    def __init__(self, program, database, entrez_query, format_type, valid_query_coverage):
+    def __init__(self, program, database, entrezQuery, formatType, queryCoverage):
         self.program = program
         self.record = ""
         self.database = database
-        self.entrez_query = entrez_query
-        self.format_type = format_type
-        self.valid_query_coverage = valid_query_coverage
+        self.entrezQuery = entrezQuery
+        self.formatType = formatType
+        self.queryCoverage = queryCoverage
 
-    # Method to call blast search, we save result to a file in case we can check what happened
     def startBlastSearch(self, input="search_output.xml"):
-        blast_output = NCBIWWW.qblast(self.program, self.database, self.record.seq,
-            entrez_query = self.entrez_query, format_type = self.format_type)
+        blastOutput = NCBIWWW.qblast(self.program, self.database, self.record.seq,
+            entrez_query = self.entrezQuery, format_type = self.formatType)
 
-        output_file = open(input, "w")
-        output_file.write(blast_output.read())
-        return
+        outputFile = open(input, "w")
+        outputFile.write(blastOutput.read())
+        return;
 
-    # Method to return result of qblast
-    # we call quickBlastSearch and specify a file to save xml result to
     def startBlast(self, input="search_output.xml"):
         self.startBlastSearch(input)
 
         result = open(input)
         return NCBIXML.read(result);
 
-    # Returns only those records with query coverage over 80 percents
     def blast(self, input="search_output.xml"):
-        blastrecords = self.startBlast(input)
-        not_valid_aligments = []
-        query_letters = blastrecords.query_letters
+        blastRecords = self.startBlast(input)
+        notValidAlignments = []
+        queryLetters = blastRecords.query_letters
 
-        # Calculate each alignment query coverage and add invalid records to not_valid_alignments
-        for alignment in blastrecords.alignments:
-            match_len_sum = 0
+        for alignment in blastRecords.alignments:
+            sum = 0
             for hsp in alignment.hsps:
-                match_len_sum += hsp.align_length
-            val = (match_len_sum*100)/query_letters
-            if val < self.valid_query_coverage:
-                not_valid_aligments.append(alignment)
+                sum += hsp.align_length
+            val = (sum * 100) / queryLetters
+            if val < self.queryCoverage:
+                notValidAlignments.append(alignment)
 
-        # Remove invalid alignments
-        for alignment in not_valid_aligments:
-            blastrecords.alignments.remove(alignment)
+        for alignment in notValidAlignments:
+            blastRecords.alignments.remove(alignment)
 
-        # Return only valid records
-        return blastrecords
+        return blastRecords;
 
-    # Method to load main sequence
     def loadMainAlbumin(self, path, format="fasta"):
         self.record = SeqIO.read(open(path), format=format)
 
-    # Method to save blast record in FASTA format
-    def saveBlastRecordAsFasta(self, blastrecords, saveFile="blast_record.fasta"):
-        fastalist = []
-        for alignment in blastrecords.alignments:
+    def saveBlastRecord(self, blastRecords, saveFile="blast_output.fasta"):
+        fastaList = []
+        for alignment in blastRecords.alignments:
             for hsp in alignment.hsps:
-                fastalist.append('>')
-                fastalist.append(alignment.title)
-                fastalist.append('\n')
-                fastalist.append(hsp.sbjct)
-                fastalist.append('\n')
-                fastalist.append('\n')
-        with open(saveFile, "w") as tempfile:
-            tempfile.writelines(fastalist)
+                fastaList.append(">{0}\n{1}\n\n".format(alignment.title, hsp.sbjct))
+
+        with open(saveFile, "w") as tempFile:
+            tempFile.writelines(fastaList)
 
     def startMafft(self, input="blast_record.fasta", output="mafft_output.fasta"):
-        os.system('mafft --quiet ' + input + ' > ' + output)
-        return
+        os.system("mafft --quiet {0} > {1}".format(input, output))
+        return;
 
-    # Method to calculate mistakes in a part
-    def mistakes_in_part(self, main_sequence, all_seqs, start_index, part_length):
-        mistakes_count = 0;
+    def mistakesInPart(self, mainSequence, allSeqs, startIndex, partLength):
+        mistakes = 0
 
-        # have to skip the first sequence because we compare with it
-        # for all sequences except first
-        for i in range(1, len(all_seqs)):
-            # take a sequence
-            sequence = all_seqs[i]
-            # count mistakes in main_sequence compared to that sequence that we took in a range
-            for j in range (start_index, start_index + part_length):
-                if (sequence[j] != main_sequence[j]):
-                    mistakes_count += 1
-        return mistakes_count
+        for i in range(1, len(allSeqs)):
+            sequence = allSeqs[i]
 
-    # Method to analyze sequence and find the most similar and dissimilar parts
-    # main_sequence to compare with must be first in a source file
-    def analysis(self, part_length, with_file = "mafft.fasta"):
-        # Reading source file to get sequences
-        all_seqs = []
-        for r in SeqIO.parse(open(with_file), "fasta"):
-            all_seqs.append(r.seq)
-            # NOTE: `source` file's first line should be the sequence that will be compared with others
-        # Let's mark main sequence
-        main_sequence = all_seqs[0]
+            for j in range (startIndex, startIndex + partLength):
+                if (sequence[j] != mainSequence[j]):
+                    mistakes += 1
 
-        # initialise markers for the most similar and dissimilar parts
-        min_mistakes = -1
-        min_index = 0
-        max_mistakes = -1
-        max_index  = 0
+        return mistakes;
 
-        for i in range(0, len(main_sequence) - part_length):
-            # count mistakes starting from i to i+part_length
-            mistakes = self.mistakes_in_part(main_sequence, all_seqs, i, part_length)
+    def analysis(self, partLength, input="mafft_output.fasta", format="fasta"):
+        allSeqs = []
+        for r in SeqIO.parse(open(input), format=format):
+            allSeqs.append(r.seq)
 
-            # mark max and min mistakes in a part
-            if (mistakes > max_mistakes) or (min_mistakes == -1):
-                min_mistakes = mistakes
-                min_index = i
-            if (mistakes < min_mistakes) or (max_mistakes == -1):
-                max_mistakes = mistakes
-                max_index = i
+        mainSequence = allSeqs[0]
+        minMistakes = -1
+        minIndex = 0
+        maxMistakes = -1
+        maxIndex  = 0
 
+        for i in range(0, len(mainSequence) - partLength):
+            mistakes = self.mistakesInPart(mainSequence, allSeqs, i, partLength)
 
-        print("Maziausiai panasi seka: " +\
-              str(min_index) + ".." + str(min_index + part_length) +\
-              " (klaidu: " + str(min_mistakes) + ")")
+            if (mistakes > maxMistakes) or (minMistakes == -1):
+                minMistakes = mistakes
+                minIndex = i
+            if (mistakes < minMistakes) or (maxMistakes == -1):
+                maxMistakes = mistakes
+                maxIndex = i
 
-        # Sequence checking
-        for sequence in all_seqs:
-            print(sequence[min_index:(min_index+part_length)])
-            break
-
-        print("Labiausiai panasi seka: " +\
-              str(max_index) + ".." + str(max_index + part_length) +\
-              " (klaidu: " + str(max_mistakes) + ")")
-        # Sequence checking
-        for sequence in all_seqs:
-            print(sequence[max_index:(max_index+part_length)])
-            break
-        return
+        print("Mažiausiai panaši seka: {0}".format(allSeqs[0][minIndex:(minIndex+partLength)]))
+        print("Labiausiai panaši seka: {0}".format(allSeqs[0][maxIndex:(maxIndex+partLength)]))
+        return;
 
 def main():
-    seqAn = Analyzer("blastp", "swissprot", '"serum albumin"[Protein name] AND mammals[Organism]', "XML",  80);
-    seqAn.loadMainAlbumin("serum_albumin_preproprotein.fasta");
+    searchOutputFile = "search_output.xml"
+    blastOutputFile = "blast_output.fasta"
 
-    #blast = seqAn.blast();
-    #seqAn.saveBlastRecordAsFasta(blast, "blast_output.fasta");
-    #seqAn.startMafft("blast_output.fasta");
-    seqAn.analysis(15);
+    seqAn = Analyzer("blastp", "swissprot", '"serum albumin"[Protein name] AND mammals[Organism]', "XML",  80)
+    seqAn.loadMainAlbumin("serum_albumin_preproprotein.fasta")
+
+    if (os.path.isfile(searchOutputFile) == False):
+        blast = seqAn.blast(searchOutputFile)
+        seqAn.saveBlastRecord(blast, blastOutputFile)
+    if (os.path.isfile(blastOutputFile) == True):
+        seqAn.startMafft(blastOutputFile)
+
+    seqAn.analysis(15)
 
 # Run main
 main()
