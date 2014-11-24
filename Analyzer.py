@@ -7,6 +7,7 @@ from Bio.Blast import NCBIWWW
 from Bio.Blast import NCBIXML
 from Bio import SeqIO
 
+
 class Analyzer:
     # Constructor
     def __init__(self, program, database, entrezQuery, formatType, queryCoverage):
@@ -36,18 +37,14 @@ class Analyzer:
         return blastRecords;
 
     def blast(self, input="search_output.xml"):
-        self.blastSearch(input)
-
-        result = open(input)
-        return NCBIXML.read(result);
-
-    def blastSearch(self, input="search_output.xml"):
         blastOutput = NCBIWWW.qblast(self.program, self.database, self.record.seq,
-            entrez_query = self.entrezQuery, format_type = self.formatType)
+                                     entrez_query=self.entrezQuery, format_type=self.formatType)
 
         outputFile = open(input, "w")
         outputFile.write(blastOutput.read())
-        return;
+
+        result = open(input)
+        return NCBIXML.read(result);
 
     def loadMainAlbumin(self, path, format="fasta"):
         self.record = SeqIO.read(open(path), format=format)
@@ -74,7 +71,7 @@ class Analyzer:
         minMistakes = -1
         minIndex = 0
         maxMistakes = -1
-        maxIndex  = 0
+        maxIndex = 0
 
         for i in range(0, len(mainSequence) - partLength):
             mistakes = self.mistakesInPart(mainSequence, allSeqs, i, partLength)
@@ -86,8 +83,8 @@ class Analyzer:
                 maxMistakes = mistakes
                 maxIndex = i
 
-        print("Mažiausiai panaši seka: {0}".format(allSeqs[0][minIndex:(minIndex+partLength)]))
-        print("Labiausiai panaši seka: {0}".format(allSeqs[0][maxIndex:(maxIndex+partLength)]))
+        print("Mažiausiai panaši seka: {0}".format(allSeqs[0][minIndex:(minIndex + partLength)]))
+        print("Labiausiai panaši seka: {0}".format(allSeqs[0][maxIndex:(maxIndex + partLength)]))
         return;
 
     def mistakesInPart(self, mainSequence, allSeqs, startIndex, partLength):
@@ -96,17 +93,18 @@ class Analyzer:
         for i in range(1, len(allSeqs)):
             sequence = allSeqs[i]
 
-            for j in range (startIndex, startIndex + partLength):
+            for j in range(startIndex, startIndex + partLength):
                 if (sequence[j] != mainSequence[j]):
                     mistakes += 1
 
         return mistakes;
 
+
 def main():
     searchOutputFile = "search_output.xml"
     blastOutputFile = "blast_output.fasta"
 
-    seqAn = Analyzer("blastp", "swissprot", '"serum albumin"[Protein name] AND mammals[Organism]', "XML",  80)
+    seqAn = Analyzer("blastp", "swissprot", '"serum albumin"[Protein name] AND mammals[Organism]', "XML", 80)
     seqAn.loadMainAlbumin("serum_albumin_preproprotein.fasta")
 
     if (os.path.isfile(searchOutputFile) == False):
