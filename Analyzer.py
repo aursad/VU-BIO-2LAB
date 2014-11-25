@@ -1,6 +1,6 @@
 __author__ = 'Aurimas Sadauskas'
 _version__ = '1.0'
-_lastUpdate = '2014-11-24'
+_lastUpdate = '2014-11-25'
 
 import os
 from Bio.Blast import NCBIWWW
@@ -103,6 +103,7 @@ class Analyzer:
 def main():
     searchOutputFile = "search_output.xml"
     blastOutputFile = "blast_output.fasta"
+    mafftOutputFile = "mafft_output.fasta"
 
     seqAn = Analyzer("blastp", "swissprot", '"serum albumin"[Protein name] AND mammals[Organism]', "XML", 80)
     seqAn.loadMainAlbumin("serum_albumin_preproprotein.fasta")
@@ -110,8 +111,8 @@ def main():
     if (os.path.isfile(searchOutputFile) == False):
         blast = seqAn.startBlast(searchOutputFile)
         seqAn.saveBlastRecord(blast, blastOutputFile)
-    if (os.path.isfile(blastOutputFile) == True):
-        seqAn.startMafft(blastOutputFile)
+    if (os.path.isfile(blastOutputFile) == True) and os.path.isfile(mafftOutputFile) == False:
+        seqAn.startMafft(blastOutputFile, mafftOutputFile)
 
     seqAn.analysis(15)
 
